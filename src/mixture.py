@@ -1,5 +1,7 @@
 import math
 import numpy as np
+from scipy.special import gamma
+from collections.abc import Callable
 
 
 # https://stackoverflow.com/a/54544972/8238129
@@ -22,8 +24,12 @@ class Mixture:
     def __init__(self, d: int):
         # dimension
         self.d = d
+
         # number of mixtures
         self.M = int(math.log(d, 2))
+
+        # radius containing the data
+        self.R = 2 * self.M
 
     def sample(self) -> np.ndarray:
         """Create synthetic dataset with sparse entries for GMM experiment"""
@@ -51,8 +57,11 @@ class Mixture:
             points[i, indices] = rng.uniform(low=-1, high=1, size=num_nonzero)
         return points
 
-    def pdf(self, x: np.ndarray):
+    def pdf(self):
         raise NotImplementedError
+
+    def _log_pdf_recipe(self, samples: np.ndarray, distribution: Callable[[np.ndarray], float]) -> float:
+        pass
 
 
 class GaussianMixture(Mixture):
@@ -60,8 +69,6 @@ class GaussianMixture(Mixture):
 
     def __init__(self, d: int, init_from_data: bool = True):
         super().__init__(d)
-        # radius containing the data
-        self.R = 2 * self.M
 
         # variance
         self.var = 1 / d
@@ -109,3 +116,36 @@ class GaussianMixture(Mixture):
 
     def objective(self):
         return -np.log(self.prior()) - np.log(self.pdf()).sum()
+
+
+class DirichletMixture(Mixture):
+    """Class for the Dirichlet Mixture Model experiment"""
+
+    def __init__(self, d: int, init_from_data: bool = True):
+        super().__init__(d)
+
+        # Create indices for parameters
+        self.idx_alpha = np.arange(self.M)
+        self.idx_pi = np.arange(self.M, self.M*2)
+        self.theta = self.init_params(init_from_data)
+
+    def init_params(self, from_data: bool) -> np.ndarray:
+        # NOTE: adapted from Gaussian!!! Needs to change if not using shifted-scaled variant
+        if from_data:
+            # initialize cluster centers from data
+            rng = np.random.default_rng()
+            return rng.choice(self.points, size=self.M)
+
+        # initialize in ball of radius R
+        return random_ball(num_points=self.M, radius=self.R, dim=self.d)
+
+    def pdf(self) -> float:
+        alpha = self.theta[self.idx_alpha]
+        pi = self.theta[self.idx_pi]
+        fraction = gamma(np.sum(alpha)) / np.prod(gamma(alpha))
+        product = np.prod(np.power(self.points, alpha - 1))
+        inner_sum = np.sum(fraction * np.multiply(product, pi))
+        return math.log(inner_sum)
+
+    def objective(self):
+        return
