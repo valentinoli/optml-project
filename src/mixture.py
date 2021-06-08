@@ -27,29 +27,35 @@ class Mixture:
 
         # number of mixtures
         self.M = int(math.log(d, 2))
+        
+        # number of samples
+        self.N = 2 ** d
 
         # radius containing the data
         self.R = 2 * self.M
+        
+        # cluster assignments
+        self.assignments = np.full((self.N, self.M), np.nan)
 
     def sample(self) -> np.ndarray:
         """Create synthetic dataset with sparse entries for GMM experiment"""
         rng = np.random.default_rng()
-        d = self.d
-        # number of data points
-        N = 2 ** d
 
         # number of nonzero entries of each point
         num_nonzero = self.M
 
-        # create ndarray of permuted indices of each data point
+        # for each data point, create an array of permuted indices
+        # -> (N, d)
         idx = np.array([
-            rng.permutation(i) for i in np.tile(np.arange(d), (N, 1))
+            rng.permutation(i) for i in np.tile(np.arange(self.d), (self.N, 1))
         ])
 
         # M nonzero entries, selected uniformly at random
+        # -> (N, M)
         idx_nonzero = idx[:, :num_nonzero]
 
-        # initialize points array with zeros
+        # initialize points array with zeros 
+        # -> (N, d)
         points = np.zeros(idx.shape)
 
         # all nonzero entries follow a uniform distribution on [-1, 1]
@@ -72,20 +78,27 @@ class GaussianMixture(Mixture):
 
         # variance
         self.var = 1 / d
-
-        # covariance matrix (isotropic and uniform)
-        # self.cov = np.diag(np.repeat(self.var, d))
+        
+        # normalization constant for the constant mixture term
+        self.Z0 = ((2 * math.pi) ** (d/2)) / math.gamma(d/2 + 1)
 
         # normalization constant for each Gaussian is the same
-        # self.Z = math.sqrt(((2 * math.pi) ** d) * np.linalg.det(self.cov))
-        self.Z = math.sqrt(((2 * math.pi * self.var) ** d))
-        # lambda_i's
+        # because the covariance matrix is isotropic and uniform accross components
+        self.Z = (2 * math.pi * self.var) ** (d/2)
+        
+        # consequently, lambda_i's are uniform
         self.lambda_ = self.Z * self.var / 1000
+        
+        # strong convexity parameter
+        self.m = 1/64
+        
+        self.C = 3.2
 
         self.points = self.sample()
         self.mu = self.init_params(init_from_data)
 
     def init_params(self, from_data: bool) -> np.ndarray:
+        """Computes initial mean parameters of the GMM"""
         if from_data:
             # initialize cluster centers from data
             rng = np.random.default_rng()
@@ -94,28 +107,48 @@ class GaussianMixture(Mixture):
         # initialize in ball of radius R
         return random_ball(num_points=self.M, radius=self.R, dim=self.d)
 
-    def pdf_constant_mixture(self):
-        # Computes the constant mixture
+    def pdf_constant_mixture(self) -> np.ndarray:
+        """
+        Computes the constant mixture term.
+        We assume data are distributed in a bounded region
+        and take this constant mixture to describe that observation.
+        :returns: numpy array of shape (N,)
+        """
+        # 
         # Assume data are distributed in a bounded region
         # and take this constant mixture to describe that observation
-        # Z_0 == Z ?
-        return (np.linalg.norm(self.points, axis=1) <= self.R).astype(int) / self.Z
+        indicator = (np.linalg.norm(self.points, axis=1) <= self.R).astype(int)
+        return indicator / self.Z0
 
-    def pdf(self) -> float:
+    def pdf(self) -> np.ndarray:
+        """
+        Computes the PDF value of the mixture for the current parameters.
+        :returns: numpy array of shape (N,)
+        """
         norm_diff = np.linalg.norm(self.points[:, None, :] - self.mu[None, :, :], axis=2)
         exponent = -0.5 * norm_diff ** 2 / self.var
         const_mix = (1 - self.M * self.lambda_) * self.pdf_constant_mixture()
         return (self.var / 1000) * np.exp(exponent).sum(axis=1) + const_mix
 
-    def prior(self):
-        # Computes the prior term
+    def prior(self) -> np.float64:
+        """Computes the prior term"""
         sqrt_M_times_R = math.sqrt(self.M) * self.R
         # Frobenius norm of means matrix
         fro = np.linalg.norm(self.mu)
         return np.exp(-self.M * (fro - sqrt_M_times_R) ** 2 * int(fro >= sqrt_M_times_R))
 
-    def objective(self):
+    def objective(self) -> np.float64:
+        """Computes the objective function value"""
         return -np.log(self.prior()) - np.log(self.pdf()).sum()
+    
+    def e_step(self):
+        """Expectation step of EM-algorithm"""
+        raise NotImplementedError
+        
+    def m_step(self):
+        """Maximization step of EM-algorithm"""
+        raise NotImplementedError
+
 
 
 class DirichletMixture(Mixture):
