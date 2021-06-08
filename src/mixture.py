@@ -34,8 +34,8 @@ class Mixture:
         # radius containing the data
         self.R = 2 * self.M
         
-        # cluster assignments -> (N, M)
-        self.assignments = np.full((self.N, self.M), np.nan)
+        # cluster assignments -> (M, N)
+        self.assignments = np.full((self.M, self.N), np.nan)
 
     def sample(self) -> np.ndarray:
         """
@@ -80,7 +80,7 @@ class GaussianMixture(Mixture):
         super().__init__(d)
 
         # variance
-        self.var = 1 / d
+        self.var = 1 / math.sqrt(d)
         
         # normalization constant for the constant mixture term
         self.Z0 = ((2 * math.pi) ** (d/2)) / math.gamma(d/2 + 1)
@@ -122,10 +122,10 @@ class GaussianMixture(Mixture):
     def pdf_main(self) -> np.ndarray:
         """
         Computes the regular GMM PDF term for all components
-        :returns: numpy array of shape (N, M)
+        :returns: numpy array of shape (M, N)
         """
-        # compute norm of pairwise differences between data points and cluster centers -> (N, M)
-        norm_diff = np.linalg.norm(self.points[:, None, :] - self.mu[None, :, :], axis=2)
+        # compute norm of pairwise differences between data points and cluster centers -> (M, N)
+        norm_diff = np.linalg.norm(self.points[None, :, :] - self.mu[:, None, :], axis=2)
         exponent = -0.5 * norm_diff ** 2 / self.var
         return (self.var / 1000) * np.exp(exponent)
     
@@ -134,7 +134,7 @@ class GaussianMixture(Mixture):
         Computes the PDF value of the mixture at all points
         :returns: numpy array of shape (N,)
         """
-        return self.pdf_main().sum(axis=1) + self.C  # (N,)
+        return self.pdf_main().sum(axis=0) + self.C  # (N,)
 
     def prior(self) -> np.float64:
         """Computes the prior term"""
@@ -152,14 +152,14 @@ class GaussianMixture(Mixture):
     
     def e_step(self):
         """Expectation step of EM-algorithm"""
-        f = self.pdf_main()  # (N, M)
-        f_sum = f.sum(axis=1)[:, None]  # (N, 1)
-        self.assignments = f / (f_sum + self.C)  # (N, M)
+        f = self.pdf_main()  # (M, N)
+        f_sum = f.sum(axis=0)  # (N,)
+        self.assignments = f / (f_sum + self.C)  # (M, N)
         
     def m_step(self):
         """Maximization step of EM-algorithm"""
-        assignments_sum = self.assignments.sum(axis=0)[:, None]  # (M, 1)
-        clusters_weighted_sum = self.assignments.T @ self.points  # (M, N) x (N, d) -> (M, d)
+        assignments_sum = self.assignments.sum(axis=1, keepdims=True)  # (M, 1)
+        clusters_weighted_sum = self.assignments @ self.points  # (M, N) x (N, d) -> (M, d)
         # update cluster centers -> (M, d)
         self.mu = clusters_weighted_sum / assignments_sum
 

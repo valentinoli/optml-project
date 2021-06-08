@@ -9,7 +9,7 @@ def em(model: Mixture):
         steps += 1
         converged = model.e_step()
         model.m_step()
-        if steps == 100:
+        if steps == 10:
             converged = True
     return steps
 
