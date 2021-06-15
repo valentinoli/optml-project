@@ -1,8 +1,7 @@
 import math
 import numpy as np
 from scipy.special import gamma
-from collections.abc import Callable
-
+from typing import Callable
 
 # https://stackoverflow.com/a/54544972/8238129
 # Generate "num_points" random points in "dimension" that have uniform
@@ -29,13 +28,16 @@ class Mixture:
         self.M = int(math.log(d, 2))
         
         # number of samples
-        self.N = 2 ** d
+        self.N = 2 ** d + 10000
 
         # radius containing the data
         self.R = 2 * self.M
         
         # cluster assignments -> (M, N)
         self.assignments = np.full((self.M, self.N), np.nan)
+
+        # Parameters of model
+        self.params = None
 
     def sample(self) -> np.ndarray:
         """
@@ -104,7 +106,13 @@ class GaussianMixture(Mixture):
         self.points = self.sample()
         
         # cluster centers (M, d)
-        self.mu = self.init_params(init_from_data)
+        self.params = self.init_params(init_from_data)
+
+    def reset_params(self, from_data: bool):
+        """
+        Reset params for GMM
+        """
+        self.params = self.init_params(from_data)
 
     def init_params(self, from_data: bool) -> np.ndarray:
         """
@@ -125,7 +133,7 @@ class GaussianMixture(Mixture):
         :returns: numpy array of shape (M, N)
         """
         # compute norm of pairwise differences between data points and cluster centers -> (M, N)
-        norm_diff = np.linalg.norm(self.points[None, :, :] - self.mu[:, None, :], axis=2)
+        norm_diff = np.linalg.norm(self.points[None, :, :] - self.params[:, None, :], axis=2)
         exponent = -0.5 * norm_diff ** 2 / self.var
         return (self.var / 1000) * np.exp(exponent)
     
@@ -140,12 +148,12 @@ class GaussianMixture(Mixture):
         """Computes the prior term"""
         sqrt_M_times_R = math.sqrt(self.M) * self.R
         # Frobenius norm of means matrix
-        fro = np.linalg.norm(self.mu)
+        fro = np.linalg.norm(self.params)
         return np.exp(-self.m * (fro - sqrt_M_times_R) ** 2 * int(fro >= sqrt_M_times_R))
 
     def objective(self) -> np.float64:
         """Computes the objective function value"""
-        log_prior = -np.log(self.prior)
+        log_prior = -np.log(self.prior())
         # sum log of pdf at all points
         log_pdf = -np.log(self.pdf()).sum()
         return log_prior + log_pdf
@@ -161,7 +169,7 @@ class GaussianMixture(Mixture):
         assignments_sum = self.assignments.sum(axis=1, keepdims=True)  # (M, 1)
         clusters_weighted_sum = self.assignments @ self.points  # (M, N) x (N, d) -> (M, d)
         # update cluster centers -> (M, d)
-        self.mu = clusters_weighted_sum / assignments_sum
+        self.params = clusters_weighted_sum / assignments_sum
 
 
 

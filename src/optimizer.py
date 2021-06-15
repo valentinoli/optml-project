@@ -1,17 +1,20 @@
 from .mixture import Mixture
+import numpy as np
 
 
-def em(model: Mixture):
+def em(model: Mixture, max_iterations, convergence_likelihood=None, convergence_threshold=1e-6) -> int:
     """Expectation Maximization Algorithm"""
-    steps = 0
-    converged = False
-    while not converged:
-        steps += 1
-        converged = model.e_step()
+    for i in range(max_iterations):
+        model.e_step()
         model.m_step()
-        if steps == 10:
-            converged = True
-    return steps
+
+        # Optional convergence test
+        likelihood_est = model.objective()
+        if convergence_likelihood is not None \
+                and likelihood_est - convergence_likelihood < convergence_threshold:
+            return i + 1
+
+    return max_iterations
 
 
 def mala(model: Mixture):
