@@ -28,7 +28,7 @@ class Mixture:
         self.M = int(math.log(d, 2))
         
         # number of samples
-        self.N = 2 ** d + 10000
+        self.N = 2 ** d 
 
         # radius containing the data
         self.R = 2 * self.M
@@ -101,6 +101,9 @@ class GaussianMixture(Mixture):
         
         # strong convexity parameter
         self.m = 1/64
+        
+        #smoothness parameter
+        self.L = 1/16
 
         # sample points (N, d)
         self.points = self.sample()
@@ -127,40 +130,56 @@ class GaussianMixture(Mixture):
         # initialize in ball of radius R
         return random_ball(num_points=self.M, radius=self.R, dim=self.d)
 
-    def pdf_main(self) -> np.ndarray:
+    def pdf_main(self,mu) -> np.ndarray:
         """
         Computes the regular GMM PDF term for all components
         :returns: numpy array of shape (M, N)
         """
         # compute norm of pairwise differences between data points and cluster centers -> (M, N)
-        norm_diff = np.linalg.norm(self.points[None, :, :] - self.params[:, None, :], axis=2)
+        norm_diff = np.linalg.norm(self.points[None, :, :] - mu[:, None, :], axis=2)
         exponent = -0.5 * norm_diff ** 2 / self.var
         return (self.var / 1000) * np.exp(exponent)
     
-    def pdf(self) -> np.ndarray:
+    def pdf(self,mu) -> np.ndarray:
         """
         Computes the PDF value of the mixture at all points
         :returns: numpy array of shape (N,)
         """
-        return self.pdf_main().sum(axis=0) + self.C  # (N,)
+        return self.pdf_main(mu).sum(axis=0) + self.C  # (N,)
 
-    def prior(self) -> np.float64:
+    def prior(self,mu) -> np.float64:
         """Computes the prior term"""
         sqrt_M_times_R = math.sqrt(self.M) * self.R
         # Frobenius norm of means matrix
-        fro = np.linalg.norm(self.params)
+        fro = np.linalg.norm(mu)
         return np.exp(-self.m * (fro - sqrt_M_times_R) ** 2 * int(fro >= sqrt_M_times_R))
 
-    def objective(self) -> np.float64:
+    def objective(self,mu) -> np.float64:
         """Computes the objective function value"""
-        log_prior = -np.log(self.prior())
+        log_prior = -np.log(self.prior(mu))
         # sum log of pdf at all points
-        log_pdf = -np.log(self.pdf()).sum()
+        log_pdf = -np.log(self.pdf(mu)).sum()
         return log_prior + log_pdf
+    
+    def gradient(self,x,precision=10**-6) -> np.ndarray:
+        """Computes an approximation of the gradient of the objective function for the ULA algorithm
+           Principle: grad[i] = (f(x_1, ... , x_i + e,..., x_n) - f(x_1, ... , x_i,..., x_n))/e
+           x of size (nb_experiments, M, d)
+           """
+       
+        gradient = np.zeros(x.shape)
+        for exp in range(x.shape[0]):
+            f_x = self.objective(x[exp])
+            for mean in range(self.M):
+                for dim in range(self.d):
+                    h = np.zeros(x[exp].shape)
+                    h[mean,dim] = precision
+                    gradient[exp,mean,dim] = (self.objective(x[exp]+h) - f_x)/precision
+        return gradient
     
     def e_step(self):
         """Expectation step of EM-algorithm"""
-        f = self.pdf_main()  # (M, N)
+        f = self.pdf_main(self.params)  # (M, N)
         f_sum = f.sum(axis=0)  # (N,)
         self.assignments = f / (f_sum + self.C)  # (M, N)
         
