@@ -95,10 +95,12 @@ class GaussianMixture(Mixture):
         # cluster centers (M, d)
         self.params = self.init_params(init_from_data)
 
-    def reset_params(self, from_data: bool):
+    def reset(self, from_data: bool, resample: bool = False):
         """
-        Reset params for GMM
+        Reset parameters and points for GMM
         """
+        if resample:
+            self.points = self.sample()
         self.params = self.init_params(from_data)
 
     def init_params(self, from_data: bool) -> np.ndarray:
