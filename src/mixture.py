@@ -26,6 +26,7 @@ class Mixture:
 
         # number of mixtures
         self.M = int(math.log(d, 2))
+        #self.M = 2
         
         # number of samples
         self.N = 2 ** d 
@@ -102,8 +103,6 @@ class GaussianMixture(Mixture):
         # strong convexity parameter
         self.m = 1/64
         
-        #smoothness parameter
-        self.L = 1/16
 
         # sample points (N, d)
         self.points = self.sample()
@@ -128,7 +127,7 @@ class GaussianMixture(Mixture):
             return rng.choice(self.points, size=self.M)
 
         # initialize in ball of radius R
-        return random_ball(num_points=self.M, radius=self.R, dim=self.d)
+        return random_ball(num_points=self.M, radius=self.R, dimension=self.d)
 
     def pdf_main(self,mu) -> np.ndarray:
         """
