@@ -36,8 +36,17 @@ def ula(model, nb_iters, nb_exps, error = 10**(-6), gamma = None, exp_mu = None,
     R = model.R
     M = model.M
     m = model.m
-    if gamma == None:
-        gamma = 252/(d**2) - 13
+    if gamma is None:
+        lr = {
+            2:90,
+            3:20,
+            4:9.25,
+            5:2,
+            6:1.75,
+            7:0.5,
+            8:0.45
+        }
+        gamma = lr[d]
         
     x_k = np.zeros((nb_exps,M,d))
     for i in range(nb_exps):
@@ -45,7 +54,7 @@ def ula(model, nb_iters, nb_exps, error = 10**(-6), gamma = None, exp_mu = None,
 
     #Gaussian noise
     def Z_k_1(): return np.random.normal(0,2*gamma,(M,d))
-    if exp_mu == None and exp_U == None:
+    if exp_mu is None and exp_U is None:
         for i in range(nb_iters - 1):
             grad_x_k = model.gradient(x_k, error)
 
