@@ -6,10 +6,10 @@ def em(model: Mixture, max_iterations, convergence_likelihood=None, convergence_
     """Expectation Maximization Algorithm"""
     for i in range(max_iterations):
         model.e_step()
+        likelihood_est = model.objective(model.params)
         model.m_step()
-
+        
         # Optional convergence test
-        likelihood_est = model.objective()
         if convergence_likelihood is not None \
                 and likelihood_est - convergence_likelihood < convergence_threshold:
             return i + 1
@@ -115,14 +115,13 @@ def mala(model, nb_iters, nb_exps, error, gamma = None):
         
         acceptance_ratio = np.zeros(x_k.shape[0])
         for i in range(x_k.shape[0]):
-            acceptance_ratio[i] = (model.objective(x_k_1[i])*transition_density(x_k_1[i],x_k[i],grad_x_k_1[i])) 
-            / (model.objective(x_k[i])*transition_density(x_k[i],x_k_1[i],grad_x_k[i]))
+            numerator = (model.objective(x_k_1[i])*transition_density(x_k_1[i],x_k[i],grad_x_k_1[i]))
+            denominator = (model.objective(x_k[i])*transition_density(x_k[i],x_k_1[i],grad_x_k[i]))
+            acceptance_ratio[i] = numerator / denominator
         uniform_distr = np.random.rand(nb_exps)
         
         index_forward = np.where(uniform_distr <= acceptance_ratio)[0]
 
         x_k[index_forward, ] = x_k_1[index_forward, ]
-        
-
         
     return x_k

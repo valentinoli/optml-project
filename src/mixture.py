@@ -26,7 +26,6 @@ class Mixture:
 
         # number of mixtures
         self.M = int(math.log(d, 2))
-        #self.M = 2
         
         # number of samples
         self.N = 2 ** d 
@@ -103,7 +102,6 @@ class GaussianMixture(Mixture):
         # strong convexity parameter
         self.m = 1/64
         
-
         # sample points (N, d)
         self.points = self.sample()
         
@@ -127,53 +125,54 @@ class GaussianMixture(Mixture):
             return rng.choice(self.points, size=self.M)
 
         # initialize in ball of radius R
-        return random_ball(num_points=self.M, radius=self.R, dimension=self.d)
+        return random_ball(num_points=self.M, dimension=self.d, radius=self.R)
 
-    def pdf_main(self,mu) -> np.ndarray:
+    def pdf_main(self, params) -> np.ndarray:
         """
         Computes the regular GMM PDF term for all components
         :returns: numpy array of shape (M, N)
         """
         # compute norm of pairwise differences between data points and cluster centers -> (M, N)
-        norm_diff = np.linalg.norm(self.points[None, :, :] - mu[:, None, :], axis=2)
+        norm_diff = np.linalg.norm(self.points[None, :, :] - params[:, None, :], axis=2)
         exponent = -0.5 * norm_diff ** 2 / self.var
         return (self.var / 1000) * np.exp(exponent)
     
-    def pdf(self,mu) -> np.ndarray:
+    def pdf(self, params) -> np.ndarray:
         """
         Computes the PDF value of the mixture at all points
         :returns: numpy array of shape (N,)
         """
-        return self.pdf_main(mu).sum(axis=0) + self.C  # (N,)
+        return self.pdf_main(params).sum(axis=0) + self.C  # (N,)
 
-    def prior(self,mu) -> np.float64:
+    def prior(self, params) -> np.float64:
         """Computes the prior term"""
         sqrt_M_times_R = math.sqrt(self.M) * self.R
         # Frobenius norm of means matrix
-        fro = np.linalg.norm(mu)
+        fro = np.linalg.norm(params)
         return np.exp(-self.m * (fro - sqrt_M_times_R) ** 2 * int(fro >= sqrt_M_times_R))
 
-    def objective(self,mu) -> np.float64:
+    def objective(self, params = None) -> np.float64:
         """Computes the objective function value"""
-        log_prior = -np.log(self.prior(mu))
+        params = params if params is not None else self.params
+        log_prior = -np.log(self.prior(params))
         # sum log of pdf at all points
-        log_pdf = -np.log(self.pdf(mu)).sum()
+        log_pdf = -np.log(self.pdf(params)).sum()
         return log_prior + log_pdf
     
-    def gradient(self,x,precision=10**-6) -> np.ndarray:
-        """Computes an approximation of the gradient of the objective function for the ULA algorithm
-           Principle: grad[i] = (f(x_1, ... , x_i + e,..., x_n) - f(x_1, ... , x_i,..., x_n))/e
-           x of size (nb_experiments, M, d)
-           """
-       
+    def gradient(self, x, precision=1e-6) -> np.ndarray:
+        """
+        Computes an approximation of the gradient of the objective function for the ULA algorithm
+        Principle: grad[i] = (f(x_1, ... , x_i + e,..., x_n) - f(x_1, ... , x_i,..., x_n))/e
+        x of size (nb_experiments, M, d)
+        """
         gradient = np.zeros(x.shape)
         for exp in range(x.shape[0]):
             f_x = self.objective(x[exp])
             for mean in range(self.M):
                 for dim in range(self.d):
                     h = np.zeros(x[exp].shape)
-                    h[mean,dim] = precision
-                    gradient[exp,mean,dim] = (self.objective(x[exp]+h) - f_x)/precision
+                    h[mean, dim] = precision
+                    gradient[exp, mean, dim] = (self.objective(x[exp]+h) - f_x)/precision
         return gradient
     
     def e_step(self):
@@ -210,7 +209,7 @@ class DirichletMixture(Mixture):
             return rng.choice(self.points, size=self.M)
 
         # initialize in ball of radius R
-        return random_ball(num_points=self.M, radius=self.R, dim=self.d)
+        return random_ball(num_points=self.M, dimension=self.d, radius=self.R)
 
     def pdf(self) -> float:
         alpha = self.theta[self.idx_alpha]
