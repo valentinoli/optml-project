@@ -1,5 +1,5 @@
 # Gaussian Mixture Modeling: Comparing Expectation-Maximization and Markov Chain Monte Carlo methods
-In this project we test the hypothesis that the results seen in [this paper](https://arxiv.org/pdf/1811.08413.pdf) replicate
+In this project we attempt to reproduce the results seen in [this paper](https://arxiv.org/pdf/1811.08413.pdf).
 
 ## Setting up
 1. You need Python 3.8+
