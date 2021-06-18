@@ -18,7 +18,7 @@ class Mixture:
         self.M = int(math.log(d, 2))
         
         # number of samples
-        self.N = 2 ** d + 10000
+        self.N = 2 ** d
 
         # radius containing the data
         self.R = 2 * self.M
