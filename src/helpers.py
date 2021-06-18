@@ -26,29 +26,3 @@ def random_ball(num_points: int, dimension: int, radius: int = 1) -> np.ndarray:
     random_radii = np.random.random(num_points) ** (1 / dimension)
     # Return the list of random (direction & length) points.
     return radius * (random_directions * random_radii).T
-
-
-def Z_k_1(gamma: float, M: int, d: int) -> float:
-    """
-    Args:
-        gamma: scaling parameter
-        M: number of mixtures
-        d: dimension
-    Returns:
-        Gaussian noise for the ULA and MALA algorithms
-    """
-    return np.random.default_rng().normal(0, 2*gamma, (M, d))
-
-
-def get_gamma(d: int, gamma: Optional[float] = None) -> float:
-    """
-    Args:
-        gamma: scaling parameter
-        d: dimension
-    Returns:
-        Returns gamma parameter for the ULA and MALA algorithms
-    """
-    if gamma is not None:
-        return gamma
-    # default gamma
-    return 252/(d**2) - 13
