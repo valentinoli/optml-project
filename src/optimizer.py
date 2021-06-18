@@ -55,7 +55,6 @@ def ula(model, nb_iters, nb_exps, error, gamma = None, exp_mu = None, exp_U = No
         }
         gamma = lr[d]
 
-    print(f'gamma: {gamma}')
     x_k = np.zeros((nb_exps,M,d))
     for i in range(nb_exps):
         x_k[i] = model.init_params_
@@ -72,7 +71,6 @@ def ula(model, nb_iters, nb_exps, error, gamma = None, exp_mu = None, exp_U = No
             x_k_1 = x_k - gamma * grad_x_k 
             +  Z_k_1()
             x_k = x_k_1
-            print(x_k)
             x_list.append(x_k)
             U_list.append(model.objective(x_k[0]))
     #Running until convergence or timeout if exp_mu and exp_u are passed as parameters
