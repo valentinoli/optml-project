@@ -115,10 +115,10 @@ def ula(
 
 
 def mala(
-    model,
-    nb_iters,
-    nb_exps,
-    error,
+    model: Mixture,
+    nb_iters: int,
+    nb_exps: int,
+    error: float,
     gamma: Optional[float] = None
 ) -> np.ndarray:
     """
