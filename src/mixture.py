@@ -9,6 +9,7 @@ from .helpers import random_ball
 
 
 class Mixture:
+    """Superclass for mixture models in the context of the experiment"""
     def __init__(self, d: int):
         # dimension
         self.d = d
@@ -59,9 +60,6 @@ class Mixture:
 
     def pdf(self):
         raise NotImplementedError
-
-    def _log_pdf_recipe(self, samples: np.ndarray, distribution: Callable[[np.ndarray], float]) -> float:
-        pass
 
 
 class GaussianMixture(Mixture):
@@ -116,7 +114,7 @@ class GaussianMixture(Mixture):
         # initialize in ball of radius R
         return random_ball(num_points=self.M, dimension=self.d, radius=self.R)
 
-    def pdf_main(self, params) -> np.ndarray:
+    def pdf_main(self, params: np.ndarray) -> np.ndarray:
         """
         Computes the regular GMM PDF term for all components
         :returns: numpy array of shape (M, N)
@@ -126,21 +124,21 @@ class GaussianMixture(Mixture):
         exponent = -0.5 * norm_diff ** 2 / self.var
         return (self.var / 1000) * np.exp(exponent)
     
-    def pdf(self, params) -> np.ndarray:
+    def pdf(self, params: np.ndarray) -> np.ndarray:
         """
         Computes the PDF value of the mixture at all points
         :returns: numpy array of shape (N,)
         """
         return self.pdf_main(params).sum(axis=0) + self.C  # (N,)
 
-    def prior(self, params) -> np.float64:
+    def prior(self, params: np.ndarray) -> np.float64:
         """Computes the prior term"""
         sqrt_M_times_R = math.sqrt(self.M) * self.R
         # Frobenius norm of means matrix
         fro = np.linalg.norm(params)
         return np.exp(-self.m * (fro - sqrt_M_times_R) ** 2 * int(fro >= sqrt_M_times_R))
 
-    def objective(self, params = None) -> np.float64:
+    def objective(self, params: Optional[np.ndarray] = None) -> np.float64:
         """Computes the objective function value"""
         params = params if params is not None else self.params
         log_prior = -np.log(self.prior(params))
@@ -148,7 +146,7 @@ class GaussianMixture(Mixture):
         log_pdf = -np.log(self.pdf(params)).sum()
         return log_prior + log_pdf
     
-    def gradient(self, x, precision=1e-4) -> np.ndarray:
+    def gradient(self, x: np.ndarray, precision: float = 1e-4) -> np.ndarray:
         """
         Computes an approximation of the gradient of the objective function for the ULA algorithm
         Principle: grad[i] = (f(x_1, ... , x_i + e,..., x_n) - f(x_1, ... , x_i,..., x_n))/e
@@ -161,7 +159,7 @@ class GaussianMixture(Mixture):
                 for dim in range(self.d):
                     h = np.zeros(x[exp].shape)
                     h[mean, dim] = precision
-                    gradient[exp, mean, dim] = (self.objective(x[exp]+h) - f_x)/precision
+                    gradient[exp, mean, dim] = (self.objective(x[exp] + h) - f_x)/precision
         return gradient
     
     def e_step(self):
@@ -176,7 +174,6 @@ class GaussianMixture(Mixture):
         clusters_weighted_sum = self.assignments @ self.points  # (M, N) x (N, d) -> (M, d)
         # update cluster centers -> (M, d)
         self.params = clusters_weighted_sum / assignments_sum
-
 
 
 class DirichletMixture(Mixture):
