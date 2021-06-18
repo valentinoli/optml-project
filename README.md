@@ -2,6 +2,8 @@
 In this project we attempt to reproduce the results seen in [this paper](https://arxiv.org/pdf/1811.08413.pdf).
 
 ## Setting up
+NOTE: running the notebook can take a really long time (around 20 minutes for the final plot in the report).
+
 1. You need Python 3.8+
 2. Install the requirements: `pip install -r requirements.txt`.
 3. Open and run the notebook `experiment.ipynb` (use Jupyter Notebook and not Jupyter Lab)
