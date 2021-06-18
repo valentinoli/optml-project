@@ -148,7 +148,7 @@ class GaussianMixture(Mixture):
         log_pdf = -np.log(self.pdf(params)).sum()
         return log_prior + log_pdf
     
-    def gradient(self, x, precision=1e-6) -> np.ndarray:
+    def gradient(self, x, precision=1e-4) -> np.ndarray:
         """
         Computes an approximation of the gradient of the objective function for the ULA algorithm
         Principle: grad[i] = (f(x_1, ... , x_i + e,..., x_n) - f(x_1, ... , x_i,..., x_n))/e

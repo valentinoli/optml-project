@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-from .mixture import Mixture
 from typing import Any
 
 
@@ -29,7 +28,7 @@ def random_ball(num_points: int, dimension: int, radius: int = 1) -> np.ndarray:
     return radius * (random_directions * random_radii).T
 
 
-def get_attrs(model: Mixture, attrs: list[str]) -> tuple[Any]:
+def get_attrs(model, attrs: list[str]) -> tuple[Any]:
     """
     Returns attributes of the given model object
     Args:
@@ -53,7 +52,7 @@ def Z_k_1(gamma: float, M: int, d: int) -> float:
     return np.random.default_rng().normal(0, 2*gamma, (M, d))
 
 
-def get_gamma(gamma: Optional[float], d: int) -> float:
+def get_gamma(d: int, gamma: Optional[float] = None) -> float:
     """
     Args:
         gamma: scaling parameter

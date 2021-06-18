@@ -34,18 +34,16 @@ def em(
     return max_iterations
 
 
-
-
 def ula(
     model: Mixture, 
     nb_iters: int, 
     nb_exps: int, 
-    error: float = 1e-6, 
-    gamma: float = None, 
-    exp_mu: float = None, 
-    exp_U: float = None, 
+    error: float, 
+    gamma: Optional[float] = None, 
+    exp_mu: Optional[float] = None, 
+    exp_U: Optional[float] = None, 
     timeout: int = 50000
-):
+) -> tuple[list]:
     """
     If exp_mu and exp_U are left blank, the algorithm will run for nb_iters. Otherwise, it will run until
     it has fullfilled the paper's convergence criteria, or until it timeouts.
@@ -60,19 +58,39 @@ def ula(
         x_k: the final sample
     """
     d, R, M, m = get_attrs(model, ['d', 'R', 'M', 'm'])
-    gamma = get_gamma(gamma, d)
-        
-    x_k = np.zeros((nb_exps,M,d))
+    if gamma is None:
+        lr = {
+            2: 90,
+            3: 20,
+            4: 9.25,
+            5: 2,
+            6: 1.75,
+            7: 0.5,
+            8: 0.45
+        }
+        if d in lr:
+            gamma = lr[d]
+        else:
+            gamma = get_gamma(d)
+
+    x_k = np.zeros((nb_exps, M, d))
     for i in range(nb_exps):
         x_k[i] = model.init_params(True)
+    x_list = [x_k]
+    U_list = [model.objective(x_k[0])]
 
+    # Running for nb_iters if exp_mu and exp_u are left blank
     if exp_mu is None and exp_U is None:
         for i in range(nb_iters - 1):
             grad_x_k = model.gradient(x_k, error)
 
             # Samples the diffusion paths, using Euler-Maruyama scheme:
             x_k_1 = x_k - gamma * grad_x_k + Z_k_1()
+
             x_k = x_k_1
+            x_list.append(x_k)
+            U_list.append(model.objective(x_k[0]))
+    # Running until convergence or timeout if exp_mu and exp_u are passed as parameters
     else:
         U_acc = model.objective(x_k[0])
         x_k_acc = x_k[0]
@@ -85,13 +103,15 @@ def ula(
             x_k = x_k_1
             x_k_acc += x_k[0]
             U_acc += model.objective(x_k[0])
+            x_list.append(x_k)
+            U_list.append(model.objective(x_k[0]))
             iteration += 1
             if iteration > timeout:
                 print('Timeout')
                 break
         print(f'Converged at iteration: {iteration}')    
 
-    return  x_k
+    return U_list, x_list
 
 
 def mala(
@@ -100,7 +120,7 @@ def mala(
     nb_exps,
     error,
     gamma: Optional[float] = None
-) ->:
+) -> np.ndarray:
     """
     Metropolis-Adjusted Langevin Algorithm
     Args:
@@ -112,9 +132,9 @@ def mala(
         x_k: the final sample
     """
     d, L, R, M, m = get_attrs(model, ['d', 'L', 'R', 'M', 'm'])
-    gamma = get_gamma(gamma, d)
+    gamma = get_gamma(d, gamma)
 
-    x_k = np.random.multivariate_normal(np.zeros(d), (1/L)*np.identity(d), (nb_exps, M))
+    x_k = np.random.default_rng().multivariate_normal(np.zeros(d), (1/L)*np.identity(d), (nb_exps, M))
     
     # grad_x_k = model.gradient(x_k, error)
     
