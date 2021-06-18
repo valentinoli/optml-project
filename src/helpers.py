@@ -28,18 +28,6 @@ def random_ball(num_points: int, dimension: int, radius: int = 1) -> np.ndarray:
     return radius * (random_directions * random_radii).T
 
 
-def get_attrs(model, attrs: list[str]) -> tuple[Any]:
-    """
-    Returns attributes of the given model object
-    Args:
-        model: the model object
-        attrs: list of string attributes
-    Returns:
-        The attributes in the given order
-    """
-    return (getattr(mod, attr) for attr in attrs)
-
-
 def Z_k_1(gamma: float, M: int, d: int) -> float:
     """
     Args:
