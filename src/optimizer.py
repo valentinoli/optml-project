@@ -17,7 +17,7 @@ def em(model: Mixture, max_iterations, convergence_likelihood=None, convergence_
     return max_iterations
 
 
-def ula(model, nb_iters, nb_exps, error = 10**(-6), gamma = None, exp_mu = None, exp_U = None, timeout = 50000):
+def ula(model, nb_iters, nb_exps, error, gamma = None, exp_mu = None, exp_U = None, timeout = 50000):
     """
     If exp_mu and exp_U are left blank, the algorithm will run for nb_iters. Otherwise, it will run until
     it has fullfilled the paper's convergence criteria, or until it timeouts.
@@ -47,13 +47,15 @@ def ula(model, nb_iters, nb_exps, error = 10**(-6), gamma = None, exp_mu = None,
             8:0.45
         }
         gamma = lr[d]
-        
+    print(gamma)
     x_k = np.zeros((nb_exps,M,d))
     for i in range(nb_exps):
         x_k[i] = model.init_params(True)
-
+    x_list = [x_k]
+    U_list = [model.objective(x_k[0])]
     #Gaussian noise
     def Z_k_1(): return np.random.normal(0,2*gamma,(M,d))
+    #Running for nb_iters if exp_mu and exp_u are left blank
     if exp_mu is None and exp_U is None:
         for i in range(nb_iters - 1):
             grad_x_k = model.gradient(x_k, error)
@@ -61,8 +63,10 @@ def ula(model, nb_iters, nb_exps, error = 10**(-6), gamma = None, exp_mu = None,
             #Samples the diffusion paths, using Euler-Maruyama scheme:
             x_k_1 = x_k - gamma * grad_x_k 
             +  Z_k_1()
-
             x_k = x_k_1
+            x_list.append(x_k)
+            U_list.append(model.objective(x_k[0]))
+    #Running until convergence or timeout if exp_mu and exp_u are passed as parameters
     else:
         U_acc = model.objective(x_k[0])
         x_k_acc = x_k[0]
@@ -76,13 +80,15 @@ def ula(model, nb_iters, nb_exps, error = 10**(-6), gamma = None, exp_mu = None,
             x_k = x_k_1
             x_k_acc += x_k[0]
             U_acc += model.objective(x_k[0])
+            x_list.append(x_k)
+            U_list.append(model.objective(x_k[0]))
             iteration += 1
             if iteration > timeout:
                 print("Timeout")
                 break
         print("Converged at iteration: " + str(iteration))    
 
-    return  x_k
+    return  U_list, x_list
 
 def mala(model, nb_iters, nb_exps, error, gamma = None):
     """
