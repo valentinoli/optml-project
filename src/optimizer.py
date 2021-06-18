@@ -3,19 +3,25 @@ import numpy as np
 
 
 def em(model: Mixture, max_iterations, convergence_likelihood=None,
-       convergence_threshold=1e-6) -> int:
+       convergence_threshold=1e-6) -> np.ndarray:
     """Expectation Maximization Algorithm"""
+    param_iterates = np.zeros((max_iterations,) + model.params.shape)
+    objective_iterates = np.zeros(max_iterations)
     for i in range(max_iterations):
         model.e_step()
-        likelihood_est = model.objective(model.params)
         model.m_step()
-        
+        likelihood_est = model.objective()
+        objective_iterates[i] = likelihood_est
+        param_iterates[i] = model.params
+
         # Optional convergence test
         if convergence_likelihood is not None \
-                and (model.objective() - convergence_likelihood) < convergence_threshold:
-            return i + 1
+                and (likelihood_est - convergence_likelihood) < convergence_threshold:
+            param_iterates = param_iterates[:i]
+            objective_iterates = objective_iterates[:i]
+            return param_iterates, objective_iterates
 
-    return max_iterations
+    return param_iterates, objective_iterates
 
 
 def ula(model, nb_iters, nb_exps, error, gamma = None, exp_mu = None, exp_U = None, timeout = 50000):
@@ -39,8 +45,8 @@ def ula(model, nb_iters, nb_exps, error, gamma = None, exp_mu = None, exp_U = No
     m = model.m
     if gamma is None:
         lr = {
-            2:90,
-            3:20,
+            2:25,
+            3:40,
             4:9.25,
             5:2,
             6:1.75,
@@ -48,10 +54,11 @@ def ula(model, nb_iters, nb_exps, error, gamma = None, exp_mu = None, exp_U = No
             8:0.45
         }
         gamma = lr[d]
-    print(gamma)
+
+    print(f'gamma: {gamma}')
     x_k = np.zeros((nb_exps,M,d))
     for i in range(nb_exps):
-        x_k[i] = model.init_params(True)
+        x_k[i] = model.init_params_
     x_list = [x_k]
     U_list = [model.objective(x_k[0])]
     #Gaussian noise
@@ -65,6 +72,7 @@ def ula(model, nb_iters, nb_exps, error, gamma = None, exp_mu = None, exp_U = No
             x_k_1 = x_k - gamma * grad_x_k 
             +  Z_k_1()
             x_k = x_k_1
+            print(x_k)
             x_list.append(x_k)
             U_list.append(model.objective(x_k[0]))
     #Running until convergence or timeout if exp_mu and exp_u are passed as parameters
@@ -72,7 +80,7 @@ def ula(model, nb_iters, nb_exps, error, gamma = None, exp_mu = None, exp_U = No
         U_acc = model.objective(x_k[0])
         x_k_acc = x_k[0]
         iteration = 1
-        while np.absolute(U_acc/iteration - exp_U) >= 10**(-6) and np.linalg.norm(x_k_acc/iteration - exp_mu) >= 10**(-3):
+        while np.absolute(U_acc/iteration - exp_U) >= 10**(-4) and np.linalg.norm(x_k_acc/iteration - exp_mu) >= 10**(-2):
             grad_x_k = model.gradient(x_k, error)
             #Samples the diffusion paths, using Euler-Maruyama scheme:
             x_k_1 = x_k - gamma * grad_x_k 
@@ -87,9 +95,8 @@ def ula(model, nb_iters, nb_exps, error, gamma = None, exp_mu = None, exp_U = No
             if iteration > timeout:
                 print("Timeout")
                 break
-        print("Converged at iteration: " + str(iteration))    
+    return x_list, U_list
 
-    return  U_list, x_list
 
 def mala(model, nb_iters, nb_exps, error, gamma = None):
     """
